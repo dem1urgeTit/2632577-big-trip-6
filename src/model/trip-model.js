@@ -50,7 +50,6 @@ export default class TripModel {
     return group ? group.offers : [];
   }
 
-  // === Новые методы для TripInfo ===
   getTripRoute() {
     const points = this.#points;
     if (points.length === 0) return 'No route';
@@ -82,7 +81,6 @@ export default class TripModel {
     }
     return total;
   }
-  // === конец новых методов ===
 
   async updatePoint(updatedPoint) {
     const index = this.#points.findIndex(p => p.id === updatedPoint.id);
