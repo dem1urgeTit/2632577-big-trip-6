@@ -50,6 +50,38 @@ export default class TripModel {
     return group ? group.offers : [];
   }
 
+  getTripRoute() {
+    const points = this.#points;
+    if (points.length === 0) return 'No route';
+    const destinations = points.map(p => this.getDestinationById(p.destination)?.name).filter(Boolean);
+    if (destinations.length === 0) return 'No route';
+    if (destinations.length <= 3) return destinations.join(' — ');
+    return `${destinations[0]} — ... — ${destinations[destinations.length - 1]}`;
+  }
+
+  getTripDates() {
+    const points = this.#points;
+    if (points.length === 0) return '';
+    const startDates = points.map(p => new Date(p.dateFrom));
+    const endDates = points.map(p => new Date(p.dateTo));
+    const start = new Date(Math.min(...startDates));
+    const end = new Date(Math.max(...endDates));
+    if (isNaN(start) || isNaN(end)) return '';
+    const format = (date) => date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).replace(/ /g, '&nbsp;');
+    return `${format(start)}&nbsp;&mdash;&nbsp;${format(end)}`;
+  }
+
+  getTotalPrice() {
+    const points = this.#points;
+    let total = 0;
+    for (const point of points) {
+      total += point.basePrice;
+      const offers = this.getOffersByIds(point.offers);
+      total += offers.reduce((sum, offer) => sum + offer.price, 0);
+    }
+    return total;
+  }
+
   async updatePoint(updatedPoint) {
     const index = this.#points.findIndex(p => p.id === updatedPoint.id);
     if (index === -1) return;
@@ -92,8 +124,8 @@ export default class TripModel {
     switch (sortType) {
       case 'time':
         return copy.sort((a, b) => {
-          const durA = new Date(a.dateTo) - new Date(a.dateFrom);
-          const durB = new Date(b.dateTo) - new Date(b.dateFrom);
+          const durA = new Date(b.dateTo) - new Date(a.dateFrom);
+          const durB = new Date(a.dateTo) - new Date(b.dateFrom);
           return durA - durB;
         });
       case 'price':

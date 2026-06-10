@@ -14,18 +14,23 @@ export default class FilterPresenter {
   }
 
   init() {
-    const filters = this.#tripModel.getFilters();
-    this.#view = new FilterView(filters);
-    this.#view.setFilterChangeHandler((filterType) => {
-      this.#filterModel.setFilter(filterType);
-    });
-    render(this.#view, this.#container);
+    this.#refresh();
     this.#tripModel.addObserver(() => this.#refresh());
     this.#filterModel.addObserver(() => this.#refresh());
   }
 
   #refresh() {
     const filters = this.#tripModel.getFilters();
-    this.#view.updateElement(filters);
+    const newView = new FilterView(filters);
+    newView.setFilterChangeHandler((filterType) => {
+      this.#filterModel.setFilter(filterType);
+    });
+    if (this.#view) {
+      this.#view.element.replaceWith(newView.element);
+      this.#view.removeElement();
+    } else {
+      render(newView, this.#container);
+    }
+    this.#view = newView;
   }
 }

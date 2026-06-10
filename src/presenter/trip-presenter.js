@@ -3,6 +3,7 @@ import PointFormView from '../view/point-form-view.js';
 import EmptyListView from '../view/empty-list-view.js';
 import LoadingView from '../view/loading-view.js';
 import ErrorLoadView from '../view/error-load-view.js';
+import TripInfoView from '../view/trip-info-view.js';
 import PointPresenter from './point-presenter.js';
 import { render } from '../framework/render.js';
 
@@ -22,6 +23,7 @@ export default class TripPresenter {
   #currentSortType = 'day';
   #isLoading = true;
   #isError = false;
+  #tripInfoComponent = null;
 
   constructor(tripModel, filterModel) {
     this.#tripModel = tripModel;
@@ -31,7 +33,10 @@ export default class TripPresenter {
     this.#tripMain = document.querySelector('.trip-main');
     this.#newEventButton = this.#tripMain?.querySelector('.trip-main__event-add-btn');
 
-    this.#tripModel.addObserver(() => this.#renderPoints());
+    this.#tripModel.addObserver(() => {
+      this.#renderPoints();
+      this.#updateTripInfo();
+    });
     this.#filterModel.addObserver(() => this.#handleFilterChange());
   }
 
@@ -41,12 +46,13 @@ export default class TripPresenter {
       await this.#tripModel.init();
       this.#isLoading = false;
       this.#isError = false;
-    } catch (err) {
+    } catch {
       this.#isLoading = false;
       this.#isError = true;
       this.#renderError();
       return;
     }
+    this.#renderTripInfo();
     this.#renderSort();
     this.#listContainer = document.createElement('ul');
     this.#listContainer.className = 'trip-events__list';
@@ -65,10 +71,27 @@ export default class TripPresenter {
     render(errorView, this.#tripEventsContainer);
   }
 
-  #renderSort() {
-    if (this.#sortComponent) {
-      this.#sortComponent.element.remove();
+  #renderTripInfo() {
+    const route = this.#tripModel.getTripRoute();
+    const dates = this.#tripModel.getTripDates();
+    const total = this.#tripModel.getTotalPrice();
+    if (this.#tripInfoComponent) {
+      this.#tripInfoComponent.element.remove();
     }
+    this.#tripInfoComponent = new TripInfoView(route, dates, total);
+    render(this.#tripInfoComponent, this.#tripMain, 'afterbegin');
+  }
+
+  #updateTripInfo() {
+    if (!this.#tripInfoComponent) return;
+    const route = this.#tripModel.getTripRoute();
+    const dates = this.#tripModel.getTripDates();
+    const total = this.#tripModel.getTotalPrice();
+    this.#tripInfoComponent.element.replaceWith(new TripInfoView(route, dates, total).element);
+  }
+
+  #renderSort() {
+    if (this.#sortComponent) this.#sortComponent.element.remove();
     this.#sortComponent = new SortView(this.#handleSortTypeChange.bind(this));
     this.#tripEventsContainer.prepend(this.#sortComponent.element);
   }
@@ -116,29 +139,23 @@ export default class TripPresenter {
   }
 
   #clearPointsList() {
-    this.#pointPresenters.forEach(presenter => presenter.destroy());
+    this.#pointPresenters.forEach(p => p.destroy());
     this.#pointPresenters.clear();
     this.#activePointPresenter = null;
-    while (this.#listContainer.firstChild) {
-      this.#listContainer.removeChild(this.#listContainer.firstChild);
-    }
+    while (this.#listContainer.firstChild) this.#listContainer.removeChild(this.#listContainer.firstChild);
   }
 
-  #handlePointDataChange = async (updatedPoint) => {
-    await this.#tripModel.updatePoint(updatedPoint);
+  #handlePointDataChange = async (updated) => {
+    await this.#tripModel.updatePoint(updated);
   };
 
-  #handlePointDelete = async (pointId) => {
-    await this.#tripModel.deletePoint(pointId);
+  #handlePointDelete = async (id) => {
+    await this.#tripModel.deletePoint(id);
   };
 
-  #handleModeChange = (activePresenter) => {
-    this.#pointPresenters.forEach(presenter => {
-      if (presenter !== activePresenter) {
-        presenter.resetView();
-      }
-    });
-    this.#activePointPresenter = activePresenter;
+  #handleModeChange = (active) => {
+    this.#pointPresenters.forEach(p => { if (p !== active) p.resetView(); });
+    this.#activePointPresenter = active;
   };
 
   #renderCreateForm() {
@@ -157,22 +174,18 @@ export default class TripPresenter {
 
   #showCreateForm() {
     if (this.#isCreateFormShown) return;
-    if (this.#activePointPresenter) {
-      this.#activePointPresenter.resetView();
-    }
+    if (this.#activePointPresenter) this.#activePointPresenter.resetView();
     this.#filterModel.setFilter('everything');
     this.#currentSortType = 'day';
     this.#renderSort();
-
     this.#createFormComponent.element.style.display = '';
     this.#isCreateFormShown = true;
-
     this.#createFormComponent.setSubmitHandler(async (newPoint) => {
       this.#createFormComponent.setSavingState(true);
       try {
         await this.#tripModel.addPoint(newPoint);
         this.#hideCreateForm();
-      } catch (error) {
+      } catch {
         this.#createFormComponent.shake();
       } finally {
         this.#createFormComponent.setSavingState(false);
