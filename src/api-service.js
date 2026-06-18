@@ -1,100 +1,122 @@
+const END_POINT = 'https://24.objects.htmlacademy.pro/big-trip';
+const AUTHORIZATION = 'Basic big-trip-user-2024';
 
+export default class Api {
+  _load({ url, method = 'GET', body = null }) {
+    const options = {
+      method,
+      headers: {
+        'Authorization': AUTHORIZATION,
+        'Content-Type': 'application/json',
+      },
+    };
 
-export default class ApiService {
-  #endPoint = null;
-  #authorization = null;
+    if (body) {
+      options.body = JSON.stringify(body);
+    }
 
-  constructor(endPoint, authorization) {
-    this.#endPoint = endPoint;
-    this.#authorization = authorization;
+    return fetch(`${END_POINT}/${url}`, options)
+      .then((response) => {
+        if (!response.ok) {
+          const form = document.querySelector('.event--edit');
+          if (form) {
+            form.style.animation = 'shake 0.5s ease-in-out';
+            form.style.backgroundColor = '#ffcccc';
+            setTimeout(() => {
+              form.style.animation = '';
+              form.style.backgroundColor = '';
+            }, 500);
+          }
+          return response.json().then((err) => {
+            throw new Error(`${response.status}: ${JSON.stringify(err)}`);
+          });
+        }
+        if (method === 'DELETE') {
+          return null;
+        }
+        return response.json();
+      })
+      .catch((error) => {
+        const form = document.querySelector('.event--edit');
+        if (form) {
+          form.style.animation = 'shake 0.5s ease-in-out';
+          form.style.backgroundColor = '#ffcccc';
+          setTimeout(() => {
+            form.style.animation = '';
+            form.style.backgroundColor = '';
+          }, 500);
+        }
+        throw error;
+      });
   }
 
-  #adaptToClient(point) {
-    const adaptedPoint = {
+  _adaptToClient(point) {
+    return {
       id: point.id,
       basePrice: point.base_price,
       dateFrom: point.date_from,
       dateTo: point.date_to,
-      destination: point.destination,
+      destinationId: point.destination,
       isFavorite: point.is_favorite,
-      offers: point.offers,
+      optionsIds: point.offers || [],
       type: point.type,
     };
-    return adaptedPoint;
   }
 
-  #adaptToServer(point) {
-    const adaptedPoint = {
-      'base_price': point.basePrice,
-      'date_from': point.dateFrom,
-      'date_to': point.dateTo,
-      'destination': point.destination,
-      'is_favorite': point.isFavorite,
-      'offers': point.offers,
+  _adaptToServer(point) {
+    const formatDate = (dateString) => {
+      if (!dateString) {
+        return dateString;
+      }
+      return dateString.replace(/\.\d{3}Z$/, 'Z');
+    };
+
+    const offers = point.optionsIds ? point.optionsIds.map((id) => String(id)) : [];
+
+    return {
+      'base_price': Number(point.basePrice),
+      'date_from': formatDate(point.dateFrom),
+      'date_to': formatDate(point.dateTo),
+      'destination': point.destinationId,
+      'is_favorite': Boolean(point.isFavorite),
+      'offers': offers,
       'type': point.type,
     };
-    if (point.id) {
-      adaptedPoint.id = point.id;
-    }
-    return adaptedPoint;
   }
 
-  async #load({ url, method = 'GET', body = null, headers = {} }) {
-    const response = await fetch(`${this.#endPoint}${url}`, {
-      method,
-      headers: {
-        'Authorization': this.#authorization,
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: body ? JSON.stringify(body) : null,
-    });
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
-    }
-    return response;
+  getPoints() {
+    return this._load({ url: 'points' })
+      .then((points) => points.map((point) => this._adaptToClient(point)));
   }
 
-  async getPoints() {
-    const response = await this.#load({ url: '/points' });
-    const points = await response.json();
-    return points.map(this.#adaptToClient);
+  getDestinations() {
+    return this._load({ url: 'destinations' });
   }
 
-  async getDestinations() {
-    const response = await this.#load({ url: '/destinations' });
-    return response.json();
+  getOffers() {
+    return this._load({ url: 'offers' });
   }
 
-  async getOffers() {
-    const response = await this.#load({ url: '/offers' });
-    const offers = await response.json();
-    return offers;
-  }
-
-  async updatePoint(point) {
-    const serverPoint = this.#adaptToServer(point);
-    const response = await this.#load({
-      url: `/points/${point.id}`,
+  updatePoint(point) {
+    return this._load({
+      url: `points/${point.id}`,
       method: 'PUT',
-      body: serverPoint,
-    });
-    const updatedPoint = await response.json();
-    return this.#adaptToClient(updatedPoint);
+      body: this._adaptToServer(point),
+    }).then((response) => (response ? this._adaptToClient(response) : null));
   }
 
-  async addPoint(point) {
-    const serverPoint = this.#adaptToServer(point);
-    const response = await this.#load({
-      url: '/points',
+  createPoint(point) {
+    return this._load({
+      url: 'points',
       method: 'POST',
-      body: serverPoint,
-    });
-    const newPoint = await response.json();
-    return this.#adaptToClient(newPoint);
+      body: this._adaptToServer(point),
+    }).then((response) => this._adaptToClient(response));
   }
 
-  async deletePoint(pointId) {
-    await this.#load({ url: `/points/${pointId}`, method: 'DELETE' });
+  deletePoint(pointId) {
+    return this._load({
+      url: `points/${pointId}`,
+      method: 'DELETE',
+    });
   }
 }
