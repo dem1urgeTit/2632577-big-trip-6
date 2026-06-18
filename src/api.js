@@ -1,5 +1,5 @@
 const END_POINT = 'https://24.objects.htmlacademy.pro/big-trip';
-const AUTHORIZATION = 'Basic big-trip-user-2024';
+const AUTHORIZATION = 'Basic bigtrip2026';
 
 export default class Api {
   _load({ url, method = 'GET', body = null }) {
