@@ -1,20 +1,22 @@
 import TripModel from './model/trip-model.js';
-import FilterModel from './model/filter-model.js';
 import TripPresenter from './presenter/trip-presenter.js';
-import FiltersPresenter from './presenter/filter-presenter.js';
+import FiltersPresenter from './presenter/filters-presenter.js';
+import TripInfoPresenter from './presenter/trip-info-presenter.js';
 import Api from './api.js';
 
-const api = new Api();
-
 const tripEventsSection = document.querySelector('.trip-events');
+const filtersContainer = document.querySelector('.trip-controls__filters');
 const tripInfoContainer = document.querySelector('.trip-main__trip-info');
 
+const api = new Api();
 const tripModel = new TripModel(api);
-const filterModel = new FilterModel();
 
-const filtersContainer = document.querySelector('.trip-controls__filters');
 const filtersPresenter = new FiltersPresenter(filtersContainer, tripModel);
-filtersPresenter.init();
+const tripPresenter = new TripPresenter(tripEventsSection, tripModel);
+const tripInfoPresenter = new TripInfoPresenter(tripInfoContainer, tripModel);
 
-const tripPresenter = new TripPresenter(tripModel, filterModel);
-tripPresenter.init();
+tripModel.init().then(() => {
+  filtersPresenter.init();
+  tripPresenter.init();
+  tripInfoPresenter.init();
+}).catch(() => {});
