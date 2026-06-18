@@ -1,38 +1,53 @@
-import AbstractView from '../framework/view/abstract-view.js';
+const path = require('path');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-export default class FilterView extends AbstractView {
-  #filters = [];
-  #onChange = null;
-
-  constructor(filters) {
-    super();
-    this.#filters = filters;
-  }
-
-  get template() {
-    return `
-      <form class="trip-filters" action="#" method="get">
-        ${this.#filters.map((f) => `
-          <div class="trip-filters__filter">
-            <input id="filter-${f.name}" class="trip-filters__filter-input visually-hidden" type="radio" name="trip-filter" value="${f.name}" ${f.isChecked ? 'checked' : ''} ${f.isDisabled ? 'disabled' : ''}>
-            <label class="trip-filters__filter-label" for="filter-${f.name}">${f.title}</label>
-          </div>
-        `).join('')}
-        <button class="visually-hidden" type="submit">Accept filter</button>
-      </form>
-    `;
-  }
-
-  setFilterChangeHandler(callback) {
-    this.#onChange = callback;
-    this.element.querySelectorAll('.trip-filters__filter-input').forEach((input) => {
-      if (!input.disabled) {
-        input.addEventListener('change', this.#changeHandler);
-      }
-    });
-  }
-
-  #changeHandler = (evt) => {
-    this.#onChange?.(evt.target.value);
-  };
-}
+module.exports = {
+  mode: 'development',
+  entry: './src/main.js',
+  output: {
+    filename: 'bundle.[contenthash].js',
+    path: path.resolve(__dirname, 'build'),
+    clean: true,
+  },
+  devtool: 'source-map',
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env'],
+          },
+        },
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader'],
+      },
+    ],
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: './public/index.html',
+      filename: 'index.html',
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: 'public/img', to: 'img' },
+        { from: 'public/css', to: 'css' },
+        { from: 'public/fonts', to: 'fonts' },
+      ],
+    }),
+  ],
+  devServer: {
+    static: {
+      directory: path.join(__dirname, 'build'),
+    },
+    port: 8082,
+    open: true,
+    hot: true,
+  },
+};
